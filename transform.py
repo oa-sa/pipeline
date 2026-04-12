@@ -7,6 +7,7 @@ and outputs standardised records.
 
 import csv
 import os
+import re
 from datetime import date
 from config import SOURCES, CATEGORIES
 
@@ -19,6 +20,23 @@ def clean_text(value):
     if not value:
         return ""
     return " ".join(value.strip().split())
+
+
+def strip_html(value):
+    """Remove HTML tags from a string."""
+    if not value:
+        return ""
+    return re.sub(r"<[^>]+>", "", value).strip()
+
+
+def extract_state_from_address(address):
+    """Try to extract Australian state from an address string."""
+    states = ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "NT", "ACT"]
+    upper = address.upper()
+    for state in states:
+        if f" {state} " in upper or upper.endswith(f" {state}"):
+            return state
+    return ""
 
 
 def map_category(raw_categories):
@@ -111,10 +129,85 @@ def transform_casey(row, source):
     }
 
 
+def transform_emergency_relief(row, source):
+    """Transform a federal Emergency Relief Provider Outlets record."""
+    field_map = source["field_map"]
+
+    # Website field contains HTML tags like <a href='...'>...</a>
+    raw_website = row.get(field_map.get("website", ""), "")
+    website = strip_html(raw_website)
+
+    # Category from the activity name
+    raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
+    category = map_category([raw_category]) if raw_category else "financial"
+
+    # Address contains full address with state — extract state
+    raw_address = clean_text(row.get(field_map.get("address", ""), ""))
+    state = extract_state_from_address(raw_address)
+
+    # Build description from org name
+    org_name = clean_text(row.get(field_map.get("organisation_name", ""), ""))
+    name = clean_text(row.get(field_map.get("name", ""), ""))
+    description = f"Emergency relief provider operated by {org_name}" if org_name else "Emergency relief provider"
+
+    return {
+        "name": name if name else org_name,
+        "description": description,
+        "category": category,
+        "address": raw_address,
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": state,
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": "",
+        "email": "",
+        "website": website,
+        "hours": "",
+        "eligibility": "",
+        "cost": "Free",
+    }
+
+
+def transform_employment_services(row, source):
+    """Transform a federal Employment Services Provider record."""
+    field_map = source["field_map"]
+
+    name = clean_text(row.get(field_map.get("name", ""), ""))
+    location = clean_text(row.get(field_map.get("location_name", ""), ""))
+
+    # Use phone or freecall
+    phone = clean_text(row.get(field_map.get("phone", ""), ""))
+    freecall = clean_text(row.get(field_map.get("freecall", ""), ""))
+    phone = freecall if freecall and freecall.strip() else phone
+
+    description = f"Employment services provider in {location}" if location else "Employment services provider"
+
+    return {
+        "name": name,
+        "description": description,
+        "category": "employment",
+        "address": clean_text(row.get(field_map.get("address", ""), "")),
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": clean_text(row.get(field_map.get("state", ""), "")),
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": phone,
+        "email": clean_text(row.get(field_map.get("email", ""), "")),
+        "website": clean_text(row.get(field_map.get("website", ""), "")),
+        "hours": "",
+        "eligibility": "",
+        "cost": "Free",
+    }
+
+
 # Map source IDs to their transform functions
 TRANSFORMERS = {
     "vic_melbourne_helping_out": transform_melbourne,
     "vic_casey_food_relief": transform_casey,
+    "fed_emergency_relief": transform_emergency_relief,
+    "fed_employment_services": transform_employment_services,
 }
 
 

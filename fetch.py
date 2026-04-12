@@ -31,8 +31,11 @@ def fetch_source(source):
         print(f"  ERROR: Failed to fetch {source_id}: {e}")
         return False
 
+    # Normalise line endings (\r\n or \r to \n)
+    text = response.text.replace("\r\n", "\n").replace("\r", "\n")
+
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write(response.text)
+        f.write(text)
 
     line_count = response.text.count("\n")
     print(f"  Saved: {output_path} ({line_count} lines)")
