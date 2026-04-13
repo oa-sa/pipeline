@@ -202,6 +202,46 @@ def transform_employment_services(row, source):
     }
 
 
+def transform_generic(row, source, default_category, default_description=""):
+    """Generic transform that works for simple datasets with standard field names."""
+    field_map = source["field_map"]
+
+    raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
+    category = map_category([raw_category]) if raw_category else default_category
+
+    address = clean_text(row.get(field_map.get("address", ""), ""))
+    address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
+    if address_2:
+        address = f"{address}, {address_2}"
+
+    description = clean_text(row.get(field_map.get("description", ""), ""))
+    services = clean_text(row.get(field_map.get("services", ""), ""))
+    if not description:
+        description = services if services else default_description
+
+    state = clean_text(row.get(field_map.get("state", ""), ""))
+    if not state:
+        state = source["jurisdiction"]
+
+    return {
+        "name": clean_text(row.get(field_map.get("name", ""), "")),
+        "description": description,
+        "category": category,
+        "address": address,
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": state,
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": clean_text(row.get(field_map.get("phone", ""), "")),
+        "email": clean_text(row.get(field_map.get("email", ""), "")),
+        "website": clean_text(row.get(field_map.get("website", ""), "")),
+        "hours": clean_text(row.get(field_map.get("hours", ""), "")),
+        "eligibility": clean_text(row.get(field_map.get("eligibility", ""), "")),
+        "cost": "Free",
+    }
+
+
 def transform_sa_community(row, source):
     """Transform a SA Community Directory record."""
     field_map = source["field_map"]
@@ -356,13 +396,24 @@ TRANSFORMERS = {
     "vic_casey_food_relief": transform_casey,
     "fed_emergency_relief": transform_emergency_relief,
     "fed_employment_services": transform_employment_services,
+    "fed_judicial_courts": lambda row, src: transform_generic(row, src, "legal", "Court"),
     "sa_community_directory": transform_sa_community,
+    "sa_child_family_health": lambda row, src: transform_generic(row, src, "health", "Child and family health centre"),
     "qld_gov_service_counters": transform_qld_gov_counters,
     "qld_housing_centres": transform_qld_housing,
     "qld_breastscreen": transform_qld_breastscreen,
     "qld_victim_support": transform_qld_victim_support,
     "qld_dispute_resolution": transform_qld_dispute,
+    "qld_contacts_dccsds": lambda row, src: transform_qld_standard(row, src, "community"),
+    "qld_youth_justice_centres": lambda row, src: transform_qld_standard(row, src, "legal"),
+    "qld_housing_finder": lambda row, src: transform_qld_standard(row, src, "housing"),
+    "qld_hep_c_centres": lambda row, src: transform_qld_standard(row, src, "health"),
     "tas_service_shops": transform_tas_service,
+    "vic_ballarat_food": lambda row, src: transform_generic(row, src, "food", "Community food activity"),
+    "vic_ballarat_community_centres": lambda row, src: transform_generic(row, src, "community", "Community centre/hall"),
+    "vic_neighbourhood_houses": lambda row, src: transform_generic(row, src, "community", "Neighbourhood house"),
+    "vic_casey_libraries": lambda row, src: transform_generic(row, src, "community", "Library"),
+    "vic_casey_maternal_health": lambda row, src: transform_generic(row, src, "health", "Maternal and child health centre"),
 }
 
 
