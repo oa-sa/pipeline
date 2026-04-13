@@ -13,6 +13,9 @@ from config import SOURCES
 
 SOURCES_DIR = os.path.join(os.path.dirname(__file__), "sources")
 TIMEOUT = 30
+HEADERS = {
+    "User-Agent": "commons-au/1.0 (https://github.com/commons-au; open data project)",
+}
 
 
 def fetch_source(source):
@@ -25,7 +28,7 @@ def fetch_source(source):
     print(f"  URL: {url}")
 
     try:
-        response = requests.get(url, timeout=TIMEOUT)
+        response = requests.get(url, timeout=TIMEOUT, headers=HEADERS)
         response.raise_for_status()
     except requests.RequestException as e:
         print(f"  ERROR: Failed to fetch {source_id}: {e}")
@@ -34,10 +37,15 @@ def fetch_source(source):
     # Normalise line endings (\r\n or \r to \n)
     text = response.text.replace("\r\n", "\n").replace("\r", "\n")
 
+    # Check for empty or near-empty responses
+    if len(text.strip()) < 10:
+        print(f"  WARNING: Empty or near-empty response for {source_id} ({len(text)} bytes)")
+        return False
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(text)
 
-    line_count = response.text.count("\n")
+    line_count = text.count("\n")
     print(f"  Saved: {output_path} ({line_count} lines)")
     return True
 
@@ -56,7 +64,7 @@ def main():
 
     print(f"\nDone. {success_count} sources fetched, {fail_count} failed.")
 
-    if fail_count > 0:
+    if success_count == 0:
         sys.exit(1)
 
 
