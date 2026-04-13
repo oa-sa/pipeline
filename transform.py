@@ -202,12 +202,167 @@ def transform_employment_services(row, source):
     }
 
 
+def transform_sa_community(row, source):
+    """Transform a SA Community Directory record."""
+    field_map = source["field_map"]
+
+    raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
+    category = map_category([raw_category]) if raw_category else "community"
+
+    tag_line = clean_text(row.get(field_map.get("tag_line", ""), ""))
+    services = clean_text(row.get(field_map.get("services", ""), ""))
+    description = tag_line if tag_line else services
+
+    # SA has full state name
+    state = clean_text(row.get(field_map.get("state", ""), ""))
+    if state.lower() == "south australia":
+        state = "SA"
+
+    address = clean_text(row.get(field_map.get("address", ""), ""))
+    address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
+    if address_2:
+        address = f"{address}, {address_2}"
+
+    return {
+        "name": clean_text(row.get(field_map.get("name", ""), "")),
+        "description": description,
+        "category": category,
+        "address": address,
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": state,
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": clean_text(row.get(field_map.get("phone", ""), "")),
+        "email": clean_text(row.get(field_map.get("email", ""), "")),
+        "website": clean_text(row.get(field_map.get("website", ""), "")),
+        "hours": clean_text(row.get(field_map.get("hours", ""), "")),
+        "eligibility": clean_text(row.get(field_map.get("eligibility", ""), "")),
+        "cost": clean_text(row.get(field_map.get("fees", ""), "")),
+    }
+
+
+def transform_qld_standard(row, source, default_category="information"):
+    """Generic transform for QLD datasets that share a similar column structure."""
+    field_map = source["field_map"]
+
+    raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
+    category = map_category([raw_category]) if raw_category else default_category
+
+    address = clean_text(row.get(field_map.get("address", ""), ""))
+    address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
+    if address_2:
+        address = f"{address}, {address_2}"
+
+    description = clean_text(row.get(field_map.get("description", ""), ""))
+    services = clean_text(row.get(field_map.get("services", ""), ""))
+    if not description and services:
+        description = services
+
+    return {
+        "name": clean_text(row.get(field_map.get("name", ""), "")),
+        "description": description,
+        "category": category,
+        "address": address,
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": clean_text(row.get(field_map.get("state", ""), "QLD")),
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": clean_text(row.get(field_map.get("phone", ""), "")),
+        "email": clean_text(row.get(field_map.get("email", ""), "")),
+        "website": clean_text(row.get(field_map.get("website", ""), "")),
+        "hours": clean_text(row.get(field_map.get("hours", ""), "")),
+        "eligibility": "",
+        "cost": "Free",
+    }
+
+
+def transform_qld_gov_counters(row, source):
+    return transform_qld_standard(row, source, default_category="information")
+
+
+def transform_qld_housing(row, source):
+    return transform_qld_standard(row, source, default_category="housing")
+
+
+def transform_qld_breastscreen(row, source):
+    return transform_qld_standard(row, source, default_category="health")
+
+
+def transform_qld_dispute(row, source):
+    return transform_qld_standard(row, source, default_category="legal")
+
+
+def transform_qld_victim_support(row, source):
+    """Transform QLD victim support — no address fields, has region instead."""
+    field_map = source["field_map"]
+
+    raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
+    category = map_category([raw_category]) if raw_category else "legal"
+
+    description = clean_text(row.get(field_map.get("description", ""), ""))
+    audience = clean_text(row.get(field_map.get("audience", ""), ""))
+    services = clean_text(row.get(field_map.get("services", ""), ""))
+
+    return {
+        "name": clean_text(row.get(field_map.get("name", ""), "")),
+        "description": description,
+        "category": category,
+        "address": "",
+        "suburb": "",
+        "state": "QLD",
+        "postcode": "",
+        "latitude": "",
+        "longitude": "",
+        "phone": clean_text(row.get(field_map.get("phone", ""), "")),
+        "email": "",
+        "website": clean_text(row.get(field_map.get("website", ""), "")),
+        "hours": "",
+        "eligibility": audience,
+        "cost": "Free",
+    }
+
+
+def transform_tas_service(row, source):
+    """Transform TAS Service Tasmania shops."""
+    field_map = source["field_map"]
+
+    # Address contains full address with state
+    raw_address = clean_text(row.get(field_map.get("address", ""), ""))
+
+    return {
+        "name": f"Service Tasmania - {clean_text(row.get(field_map.get('name', ''), ''))}",
+        "description": "Service Tasmania government service shop",
+        "category": "information",
+        "address": raw_address,
+        "suburb": "",
+        "state": "TAS",
+        "postcode": "",
+        "latitude": clean_text(row.get(field_map.get("latitude", ""), "")),
+        "longitude": clean_text(row.get(field_map.get("longitude", ""), "")),
+        "phone": "",
+        "email": "",
+        "website": "",
+        "hours": clean_text(row.get(field_map.get("hours", ""), "")),
+        "eligibility": "",
+        "cost": "Free",
+    }
+
+
 # Map source IDs to their transform functions
 TRANSFORMERS = {
     "vic_melbourne_helping_out": transform_melbourne,
     "vic_casey_food_relief": transform_casey,
     "fed_emergency_relief": transform_emergency_relief,
     "fed_employment_services": transform_employment_services,
+    "sa_community_directory": transform_sa_community,
+    "qld_gov_service_counters": transform_qld_gov_counters,
+    "qld_housing_centres": transform_qld_housing,
+    "qld_breastscreen": transform_qld_breastscreen,
+    "qld_victim_support": transform_qld_victim_support,
+    "qld_dispute_resolution": transform_qld_dispute,
+    "tas_service_shops": transform_tas_service,
 }
 
 
