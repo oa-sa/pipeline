@@ -4,14 +4,17 @@ Merge all transformed records into the final output files.
 Produces:
 - output/combined/services.csv — the full merged dataset as CSV
 - output/combined/services.json — the full merged dataset as JSON
+- output/combined/services.db — the full merged dataset as SQLite
 - output/combined/SOURCES.md — attribution for all data sources
-- output/government/{state}/{source}.csv — per-source files
-- output/government/{state}/SOURCES.md — per-state attribution
+- output/gov/{state}/{source}.csv — per-source files
+- output/gov/{state}/SOURCES.md — per-state attribution
+- output/osm/{source}.csv — OpenStreetMap data
 """
 
 import csv
 import json
 import os
+import sqlite3
 from collections import defaultdict
 from datetime import date
 from config import SOURCES, SCHEMA_FIELDS
@@ -56,6 +59,70 @@ def write_json(records, path):
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
+    print(f"  Written: {path} ({len(records)} records)")
+
+
+def write_sqlite(records, path):
+    """Write records to a SQLite database."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if os.path.exists(path):
+        os.remove(path)
+
+    conn = sqlite3.connect(path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE services (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            category TEXT,
+            address TEXT,
+            suburb TEXT,
+            state TEXT,
+            postcode TEXT,
+            latitude REAL,
+            longitude REAL,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            hours TEXT,
+            eligibility TEXT,
+            cost TEXT,
+            source_id TEXT,
+            source_name TEXT,
+            source_organisation TEXT,
+            source_jurisdiction TEXT,
+            source_license TEXT,
+            source_url TEXT,
+            source_date TEXT,
+            quality TEXT
+        )
+    """)
+
+    # Create indexes for common queries
+    cursor.execute("CREATE INDEX idx_state ON services(state)")
+    cursor.execute("CREATE INDEX idx_category ON services(category)")
+    cursor.execute("CREATE INDEX idx_quality ON services(quality)")
+    cursor.execute("CREATE INDEX idx_suburb ON services(suburb)")
+    cursor.execute("CREATE INDEX idx_postcode ON services(postcode)")
+
+    for record in records:
+        row = {field: record.get(field, "") for field in SCHEMA_FIELDS}
+        # Convert lat/lng to real numbers for spatial queries
+        for field in ("latitude", "longitude"):
+            try:
+                row[field] = float(row[field]) if row[field] else None
+            except ValueError:
+                row[field] = None
+
+        cursor.execute(
+            f"INSERT INTO services ({', '.join(SCHEMA_FIELDS)}) VALUES ({', '.join('?' * len(SCHEMA_FIELDS))})",
+            [row[f] for f in SCHEMA_FIELDS],
+        )
+
+    conn.commit()
+    conn.close()
     print(f"  Written: {path} ({len(records)} records)")
 
 
@@ -153,6 +220,7 @@ def main():
     print(f"\nWriting combined output ({len(records)} total records)...")
     write_csv(records, os.path.join(OUTPUT_DIR, "combined", "services.csv"))
     write_json(records, os.path.join(OUTPUT_DIR, "combined", "services.json"))
+    write_sqlite(records, os.path.join(OUTPUT_DIR, "combined", "services.db"))
     write_sources(SOURCES, os.path.join(OUTPUT_DIR, "combined", "SOURCES.md"))
 
     print("\nDone.")
