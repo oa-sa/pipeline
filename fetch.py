@@ -101,10 +101,10 @@ def fetch_overpass(source):
         parts = []
         for tag in tags:
             parts.append(f'node[{tag}]({s},{w},{n},{e});')
-        query = f'[out:json][timeout:45];({" ".join(parts)});out body;'
+        query = f'[out:json][timeout:90];({" ".join(parts)});out body;'
 
         try:
-            r = requests.post(overpass_url, data={"data": query}, timeout=60, headers=HEADERS)
+            r = requests.post(overpass_url, data={"data": query}, timeout=120, headers=HEADERS)
             if r.status_code == 200:
                 elements = r.json().get("elements", [])
                 # Tag each element with the state
