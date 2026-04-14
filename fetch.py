@@ -12,8 +12,10 @@ Supports two fetch methods:
 
 import csv
 import io
+import json
 import os
 import sys
+import zipfile
 import requests
 from config import SOURCES
 
@@ -76,6 +78,41 @@ def fetch_ckan_datastore(source):
     return output.getvalue()
 
 
+def fetch_geojson_zip(source):
+    """Fetch a zipped GeoJSON file and convert to CSV."""
+    response = requests.get(source["url"], timeout=TIMEOUT, headers=HEADERS)
+    response.raise_for_status()
+
+    z = zipfile.ZipFile(io.BytesIO(response.content))
+    geojson_files = [n for n in z.namelist() if n.endswith('.geojson') or n.endswith('.json')]
+    if not geojson_files:
+        return None
+
+    data = json.loads(z.read(geojson_files[0]))
+    features = data.get("features", [])
+    if not features:
+        return None
+
+    # Get all property keys from first feature + coordinates
+    field_map = source.get("field_map", {})
+    all_keys = set()
+    for f in features:
+        all_keys.update(f.get("properties", {}).keys())
+    fieldnames = sorted(all_keys) + ["_latitude", "_longitude"]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+    writer.writeheader()
+    for feature in features:
+        row = dict(feature.get("properties", {}))
+        coords = feature.get("geometry", {}).get("coordinates", [None, None])
+        row["_longitude"] = coords[0] if coords else ""
+        row["_latitude"] = coords[1] if len(coords) > 1 else ""
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
 def fetch_source(source):
     """Download a single data source and save to sources/ directory."""
     source_id = source["id"]
@@ -88,6 +125,8 @@ def fetch_source(source):
     try:
         if method == "ckan_datastore":
             text = fetch_ckan_datastore(source)
+        elif method == "geojson_zip":
+            text = fetch_geojson_zip(source)
         else:
             text = fetch_csv(source)
     except requests.RequestException as e:
