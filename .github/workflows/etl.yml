@@ -1,32 +1,82 @@
 name: Update Data
 
 on:
-  # Manual trigger only — run from GitHub UI when needed.
-  # We don't schedule automatic runs to avoid unnecessary API calls
-  # to government portals. Trigger manually when you want fresh data.
   workflow_dispatch:
 
 jobs:
-  etl:
+  fetch-gov:
+    name: Fetch Government Data
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout pipeline
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python fetch.py --filter gov
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sources-gov
+          path: sources/
+          retention-days: 1
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+  fetch-osm:
+    name: Fetch OpenStreetMap Data
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python fetch.py --filter osm
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: sources-osm
+          path: sources/
+          retention-days: 1
 
-      - name: Fetch data from government APIs
-        run: python fetch.py
+  build:
+    name: Transform and Merge
+    runs-on: ubuntu-latest
+    needs: [fetch-gov]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
 
-      - name: Transform and merge data
-        run: python merge.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: sources-gov
+          path: sources/
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: sources-osm
+          path: sources/
+
+      - run: python merge.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: output
+          path: output/
+          retention-days: 1
+
+  publish:
+    name: Publish to Data Repo
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: output
+          path: output/
 
       - name: Clone data repo
         run: |
@@ -34,18 +84,14 @@ jobs:
 
       - name: Copy output to data repo
         run: |
-          # Remove old data files (keep .gitkeep), then copy fresh output
           find data-repo/gov -name '*.csv' -o -name 'SOURCES.md' | xargs rm -f
           find data-repo/combined -name '*.csv' -o -name '*.json' -o -name '*.db' -o -name 'SOURCES.md' | xargs rm -f
           find data-repo/osm -name '*.csv' -o -name 'SOURCES.md' 2>/dev/null | xargs rm -f
-          # Copy per-source government data
           cp -r output/gov/. data-repo/gov/
-          # Copy OSM data (create dir if needed)
           if [ -d output/osm ]; then
             mkdir -p data-repo/osm
             cp -r output/osm/. data-repo/osm/
           fi
-          # Copy combined data
           cp -r output/combined/. data-repo/combined/
 
       - name: Update README with fetch status
@@ -80,6 +126,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
-            git commit -m "Update data from government sources ($(date -u +%Y-%m-%d))"
+            git commit -m "Update data from government + OSM sources ($(date -u +%Y-%m-%d))"
             git push
           fi

@@ -191,12 +191,29 @@ def fetch_source(source):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Fetch data from configured sources")
+    parser.add_argument("--filter", choices=["gov", "osm", "all"], default="all",
+                        help="Which sources to fetch: gov (government only), osm (OpenStreetMap only), all (default)")
+    args = parser.parse_args()
+
     os.makedirs(SOURCES_DIR, exist_ok=True)
+
+    sources_to_fetch = []
+    for source in SOURCES:
+        is_osm = source["id"].startswith("osm_")
+        if args.filter == "gov" and is_osm:
+            continue
+        if args.filter == "osm" and not is_osm:
+            continue
+        sources_to_fetch.append(source)
+
+    print(f"Fetching {len(sources_to_fetch)} sources (filter: {args.filter})...\n")
 
     success_count = 0
     fail_count = 0
 
-    for source in SOURCES:
+    for source in sources_to_fetch:
         if fetch_source(source):
             success_count += 1
         else:
