@@ -20,7 +20,7 @@ import requests
 from config import SOURCES
 
 SOURCES_DIR = os.path.join(os.path.dirname(__file__), "sources")
-TIMEOUT = 30
+TIMEOUT = 120
 HEADERS = {
     "User-Agent": "oa-sa/1.0 (https://github.com/oa-sa; open data project)",
 }

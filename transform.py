@@ -426,6 +426,88 @@ def transform_qld_victim_support(row, source):
     }
 
 
+def transform_acnc(row, source):
+    """Transform an ACNC Registered Charities record."""
+    field_map = source["field_map"]
+
+    name = clean_text(row.get(field_map.get("name", ""), ""))
+    alt_name = clean_text(row.get(field_map.get("alt_name", ""), ""))
+
+    # Skip non-Australian charities
+    country = clean_text(row.get(field_map.get("country", ""), ""))
+    if country and country.lower() != "australia":
+        return None
+
+    # Build address from up to 3 lines
+    address = clean_text(row.get(field_map.get("address", ""), ""))
+    address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
+    address_3 = clean_text(row.get(field_map.get("address_3", ""), ""))
+    address_parts = [p for p in [address, address_2, address_3] if p]
+    full_address = ", ".join(address_parts)
+
+    # Determine category from charity subtypes (Y/blank columns)
+    subtype_map = [
+        ("Advancing_Health", "advancing_health"),
+        ("Advancing_Education", "advancing_education"),
+        ("Advancing_social_or_public_welfare", "advancing_social_or_public_welfare"),
+        ("Promoting_or_protecting_human_rights", "promoting_or_protecting_human_rights"),
+        ("Advancing_Culture", "advancing_culture"),
+        ("Advancing_natual_environment", "advancing_natual_environment"),
+        ("Advancing_Religion", "advancing_religion"),
+        ("Preventing_or_relieving_suffering_of_animals", "preventing_or_relieving_suffering_of_animals"),
+    ]
+    raw_categories = []
+    for col, cat_key in subtype_map:
+        if row.get(col, "").strip() == "Y":
+            raw_categories.append(cat_key)
+
+    category = map_category(raw_categories) if raw_categories else "community"
+
+    # Build description from alt name and beneficiary groups
+    beneficiary_cols = [
+        ("Aboriginal_or_TSI", "Aboriginal and Torres Strait Islander people"),
+        ("Aged_Persons", "aged persons"),
+        ("Children", "children"),
+        ("Families", "families"),
+        ("Financially_Disadvantaged", "financially disadvantaged"),
+        ("People_at_risk_of_homelessness", "people at risk of homelessness"),
+        ("People_with_Disabilities", "people with disabilities"),
+        ("Migrants_Refugees_or_Asylum_Seekers", "migrants, refugees or asylum seekers"),
+        ("Veterans_or_their_families", "veterans or their families"),
+        ("Youth", "youth"),
+        ("Unemployed_Person", "unemployed persons"),
+    ]
+    beneficiaries = [label for col, label in beneficiary_cols if row.get(col, "").strip() == "Y"]
+    description = f"Registered charity"
+    if alt_name:
+        description = f"Also known as {alt_name}. Registered charity"
+    if beneficiaries:
+        description += f" serving {', '.join(beneficiaries[:3])}"
+
+    # Website - add https:// if missing
+    website = clean_text(row.get(field_map.get("website", ""), ""))
+    if website and not website.startswith("http"):
+        website = f"https://{website}"
+
+    return {
+        "name": name,
+        "description": description,
+        "category": category,
+        "address": full_address,
+        "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
+        "state": clean_text(row.get(field_map.get("state", ""), "")),
+        "postcode": clean_text(row.get(field_map.get("postcode", ""), "")),
+        "latitude": "",
+        "longitude": "",
+        "phone": "",
+        "email": "",
+        "website": website,
+        "hours": "",
+        "eligibility": "",
+        "cost": "",
+    }
+
+
 def transform_tas_service(row, source):
     """Transform TAS Service Tasmania shops."""
     field_map = source["field_map"]
@@ -478,6 +560,7 @@ TRANSFORMERS = {
     "vic_casey_maternal_health": lambda row, src: transform_generic(row, src, "health", "Maternal and child health centre"),
     "vic_ballarat_kindergartens": lambda row, src: transform_generic(row, src, "education", "Kindergarten"),
     "vic_ballarat_early_learning": lambda row, src: transform_generic(row, src, "education", "Early learning centre"),
+    "fed_acnc_charities": transform_acnc,
     "sa_gp_plus": lambda row, src: transform_generic(row, src, "health", "GP Plus health clinic"),
     "sa_private_hospitals": lambda row, src: transform_generic(row, src, "health", "Private hospital"),
 }
@@ -504,6 +587,10 @@ def transform_source(source):
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
             record = transformer(row, source)
+
+            # Skip records filtered out by transformer (e.g. non-Australian)
+            if record is None:
+                continue
 
             # Skip records with no name
             if not record["name"]:
