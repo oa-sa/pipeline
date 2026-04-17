@@ -126,15 +126,6 @@ CATEGORIES = {
     "breast screening": "health",
     "housing service": "housing",
     "government service": "information",
-    # ACNC charity subtype categories
-    "advancing_health": "health",
-    "advancing_education": "education",
-    "advancing_social_or_public_welfare": "community",
-    "advancing_religion": "community",
-    "advancing_culture": "community",
-    "advancing_natual_environment": "community",
-    "promoting_or_protecting_human_rights": "legal",
-    "preventing_or_relieving_suffering_of_animals": "community",
 }
 
 SOURCES = [
@@ -663,30 +654,6 @@ SOURCES = [
             "website": "website",
             "latitude": "latitude",
             "longitude": "longitude",
-        },
-    },
-    {
-        "id": "fed_acnc_charities",
-        "name": "ACNC Registered Charities",
-        "organisation": "Australian Charities and Not-for-profits Commission",
-        "jurisdiction": "federal",
-        "url": "https://data.gov.au/data/dataset/b050b242-4487-4306-abf5-07ca073e5594/resource/8fb32972-24e9-4c95-885e-7140be51be8a/download/datadotgov_main.csv",
-        "license": "CC-BY-3.0-AU",
-        "license_url": "https://creativecommons.org/licenses/by/3.0/au/",
-        "dataset_url": "https://data.gov.au/data/dataset/acnc-register",
-        "field_map": {
-            "name": "Charity_Legal_Name",
-            "alt_name": "Other_Organisation_Names",
-            "address": "Address_Line_1",
-            "address_2": "Address_Line_2",
-            "address_3": "Address_Line_3",
-            "suburb": "Town_City",
-            "state": "State",
-            "postcode": "Postcode",
-            "country": "Country",
-            "website": "Charity_Website",
-            "registration_date": "Registration_Date",
-            "charity_size": "Charity_Size",
         },
     },
     {
