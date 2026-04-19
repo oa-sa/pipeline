@@ -10,6 +10,7 @@ import os
 import re
 from datetime import date
 from config import SOURCES, CATEGORIES
+from clean import normalise_phone, normalise_website, normalise_suburb
 
 
 SOURCES_DIR = os.path.join(os.path.dirname(__file__), "sources")
@@ -510,6 +511,11 @@ def transform_source(source):
             # Skip records with no name
             if not record["name"]:
                 continue
+
+            # Normalise phone, website, suburb
+            record["phone"] = normalise_phone(record.get("phone", ""))
+            record["website"] = normalise_website(record.get("website", ""))
+            record["suburb"] = normalise_suburb(record.get("suburb", ""))
 
             # Normalise state
             record["state"] = normalise_state(record.get("state", ""))
