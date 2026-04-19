@@ -212,3 +212,59 @@ def normalise_suburb(value):
         result = pat.sub(repl, result)
 
     return result
+
+
+# ---------------------------------------------------------------------------
+# Description
+# ---------------------------------------------------------------------------
+
+_HTML_TAG = re.compile(r"<[^>]+>")
+_ENTITY = re.compile(r"&(nbsp|amp|lt|gt|quot|apos);", re.IGNORECASE)
+_ENTITIES = {"nbsp": " ", "amp": "&", "lt": "<", "gt": ">", "quot": '"', "apos": "'"}
+
+# Words to strip when comparing name against operator boilerplate
+_ORG_STOPWORDS = re.compile(
+    r"\b(the|inc|incorporated|ltd|limited|pty|co|and|trustee|for|"
+    r"australia|australian|queensland|victoria|nsw|wa|sa|tas|nt|act|"
+    r"society|services?|centre|center|property|trust)\b",
+    re.IGNORECASE,
+)
+
+
+def _simplify_org(name):
+    s = _ORG_STOPWORDS.sub("", name or "").lower()
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def normalise_description(description, name=""):
+    """
+    Clean a description:
+    - Strip HTML tags and decode common entities
+    - Collapse whitespace and newlines
+    - Remove if identical to name
+    - Remove "operated by X" tail when X ≈ name
+    """
+    if _is_sentinel(description):
+        return ""
+
+    s = _HTML_TAG.sub(" ", description)
+    s = _ENTITY.sub(lambda m: _ENTITIES.get(m.group(1).lower(), m.group(0)), s)
+    s = s.replace("\r", " ").replace("\n", " ").replace("\t", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+
+    if not s:
+        return ""
+
+    if name and s.lower() == name.strip().lower():
+        return ""
+
+    # "Emergency relief provider operated by XYZ" → drop operator if XYZ ≈ name
+    m = re.match(r"(.+?)\s+operated by\s+(.+)$", s, re.IGNORECASE)
+    if m and name:
+        head, operator = m.group(1).strip(), m.group(2).strip()
+        if _simplify_org(operator) == _simplify_org(name):
+            s = head
+
+    return s
