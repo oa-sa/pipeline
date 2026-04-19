@@ -102,13 +102,25 @@ def extract_state_from_address(address):
     return ""
 
 
-def map_category(raw_categories):
-    """Map source category labels to our standard categories."""
+def map_category(raw_categories, default="other"):
+    """
+    Map source category labels to our standard categories.
+
+    Tries each raw value; if none match, returns `default`. Also tries
+    splitting on comma/slash so "Food aid, education" matches "food aid".
+    """
     for raw in raw_categories:
         raw_lower = raw.strip().lower()
+        if not raw_lower:
+            continue
         if raw_lower in CATEGORIES:
             return CATEGORIES[raw_lower]
-    return "other"
+        # Try splitting on common separators
+        for part in re.split(r"[,/]|\s-\s", raw_lower):
+            part = part.strip()
+            if part in CATEGORIES:
+                return CATEGORIES[part]
+    return default
 
 
 def build_hours_melbourne(row, field_map):
@@ -153,7 +165,7 @@ def transform_melbourne(row, source):
     return {
         "name": clean_text(row.get(field_map.get("name", ""), "")),
         "description": clean_text(row.get(field_map.get("description", ""), "")),
-        "category": map_category(raw_categories),
+        "category": map_category(raw_categories, default="other"),
         "address": clean_text(row.get(field_map.get("address", ""), "")),
         "suburb": clean_text(row.get(field_map.get("suburb", ""), "")),
         "state": source["jurisdiction"],
@@ -202,7 +214,7 @@ def transform_emergency_relief(row, source):
 
     # Category from the activity name
     raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
-    category = map_category([raw_category]) if raw_category else "financial"
+    category = map_category([raw_category], default="financial") if raw_category else "financial"
 
     # Address contains full address with state — extract state
     raw_address = clean_text(row.get(field_map.get("address", ""), ""))
@@ -270,7 +282,7 @@ def transform_generic(row, source, default_category, default_description=""):
     field_map = source["field_map"]
 
     raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
-    category = map_category([raw_category]) if raw_category else default_category
+    category = map_category([raw_category], default=default_category) if raw_category else default_category
 
     address = clean_text(row.get(field_map.get("address", ""), ""))
     address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
@@ -310,7 +322,7 @@ def transform_sa_community(row, source):
     field_map = source["field_map"]
 
     raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
-    category = map_category([raw_category]) if raw_category else "community"
+    category = map_category([raw_category], default="community") if raw_category else "community"
 
     tag_line = clean_text(row.get(field_map.get("tag_line", ""), ""))
     services = clean_text(row.get(field_map.get("services", ""), ""))
@@ -350,7 +362,7 @@ def transform_qld_standard(row, source, default_category="information"):
     field_map = source["field_map"]
 
     raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
-    category = map_category([raw_category]) if raw_category else default_category
+    category = map_category([raw_category], default=default_category) if raw_category else default_category
 
     address = clean_text(row.get(field_map.get("address", ""), ""))
     address_2 = clean_text(row.get(field_map.get("address_2", ""), ""))
@@ -402,7 +414,7 @@ def transform_qld_victim_support(row, source):
     field_map = source["field_map"]
 
     raw_category = clean_text(row.get(field_map.get("category_raw", ""), ""))
-    category = map_category([raw_category]) if raw_category else "legal"
+    category = map_category([raw_category], default="legal") if raw_category else "legal"
 
     description = clean_text(row.get(field_map.get("description", ""), ""))
     audience = clean_text(row.get(field_map.get("audience", ""), ""))

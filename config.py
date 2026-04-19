@@ -126,6 +126,41 @@ CATEGORIES = {
     "breast screening": "health",
     "housing service": "housing",
     "government service": "information",
+    # Melbourne Helping Out category_1 values
+    "hospitals / emergency": "health",
+    "legal / financial advice": "legal",
+    "helpful phone number": "information",
+    "helpful website": "information",
+    "support and advocacy": "community",
+    # SA private hospitals
+    "private hospital": "health",
+    "private day only hospital": "health",
+    "private psychiatric hospital": "mental_health",
+    # VIC Ballarat food "Type" values
+    "food aid": "food",
+    "local produce": "food",
+    # Generic food / meal patterns
+    "community meals": "food",
+    "soup kitchen": "food",
+    "food pantry": "food",
+    # Common labels seen across datasets
+    "community health": "health",
+    "mental health services": "mental_health",
+    "psychiatric": "mental_health",
+    "alcohol and other drugs": "alcohol_drugs",
+    "aod": "alcohol_drugs",
+    "drug and alcohol services": "alcohol_drugs",
+    "homeless": "housing",
+    "homelessness": "housing",
+    "refuge": "housing",
+    "youth services": "family",
+    "child protection": "family",
+    # More Melbourne labels
+    "clothes and blankets": "personal_care",
+    "showers / laundry": "personal_care",
+    "tenancy assistance": "housing",
+    "travel assistance": "transport",
+    "employment assistance": "employment",
 }
 
 SOURCES = [
